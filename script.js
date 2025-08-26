@@ -8,8 +8,12 @@ const pvpBtn = document.getElementById('pvp-btn');
 const aiBtn = document.getElementById('ai-btn');
 const resetBtn = document.getElementById('reset-btn');
 const newGameBtn = document.getElementById('newgame-btn');
+const aiDifficultyEl = document.getElementById('ai-difficulty');
+const easyBtn = document.getElementById('easy-btn');
+const mediumBtn = document.getElementById('medium-btn');
+const hardBtn = document.getElementById('hard-btn');
 
-let board, currentPlayer, gameActive, mode, scores;
+let board, currentPlayer, gameActive, mode, scores, aiDifficulty;
 
 function initGame() {
     board = Array(9).fill('');
@@ -127,12 +131,37 @@ function setMode(newMode) {
     mode = newMode;
     pvpBtn.classList.toggle('active', mode === 'pvp');
     aiBtn.classList.toggle('active', mode === 'ai');
+    
+    // Show/hide difficulty selector based on mode
+    aiDifficultyEl.style.display = mode === 'ai' ? 'flex' : 'none';
+    
     newGame();
 }
 
+function setDifficulty(difficulty) {
+    aiDifficulty = difficulty;
+    easyBtn.classList.toggle('active', difficulty === 'easy');
+    mediumBtn.classList.toggle('active', difficulty === 'medium');
+    hardBtn.classList.toggle('active', difficulty === 'hard');
+}
+
 function aiMove() {
-    // Simple AI: win, block, or pick random
-    let move = findBestMove('O') || findBestMove('X') || randomMove();
+    let move;
+    
+    switch (aiDifficulty) {
+        case 'easy':
+            move = easyAI();
+            break;
+        case 'medium':
+            move = mediumAI();
+            break;
+        case 'hard':
+            move = hardAI();
+            break;
+        default:
+            move = mediumAI();
+    }
+    
     if (move !== null) {
         board[move] = 'O';
         updateCell(move, 'O');
@@ -152,6 +181,94 @@ function aiMove() {
             currentPlayer = 'X';
             setMessage(`Player ${currentPlayer}'s turn`);
         }
+    }
+}
+
+// Easy AI: 70% random moves, 30% strategic
+function easyAI() {
+    if (Math.random() < 0.7) {
+        return randomMove();
+    }
+    return findBestMove('O') || findBestMove('X') || randomMove();
+}
+
+// Medium AI: Win, block, center, corner, random
+function mediumAI() {
+    // Try to win
+    let move = findBestMove('O');
+    if (move !== null) return move;
+    
+    // Try to block player from winning
+    move = findBestMove('X');
+    if (move !== null) return move;
+    
+    // Take center if available
+    if (board[4] === '') return 4;
+    
+    // Take corners
+    const corners = [0, 2, 6, 8];
+    const availableCorners = corners.filter(i => board[i] === '');
+    if (availableCorners.length > 0) {
+        return availableCorners[Math.floor(Math.random() * availableCorners.length)];
+    }
+    
+    // Random move
+    return randomMove();
+}
+
+// Hard AI: Minimax algorithm (unbeatable)
+function hardAI() {
+    let bestScore = -Infinity;
+    let bestMove = null;
+    
+    for (let i = 0; i < 9; i++) {
+        if (board[i] === '') {
+            board[i] = 'O';
+            let score = minimax(board, 0, false);
+            board[i] = '';
+            if (score > bestScore) {
+                bestScore = score;
+                bestMove = i;
+            }
+        }
+    }
+    
+    return bestMove;
+}
+
+// Minimax algorithm for hard AI
+function minimax(board, depth, isMaximizing) {
+    const winner = checkWinner();
+    
+    if (winner) {
+        if (winner.player === 'O') return 10 - depth;
+        if (winner.player === 'X') return depth - 10;
+    }
+    
+    if (board.every(cell => cell)) return 0;
+    
+    if (isMaximizing) {
+        let maxEval = -Infinity;
+        for (let i = 0; i < 9; i++) {
+            if (board[i] === '') {
+                board[i] = 'O';
+                let eval = minimax(board, depth + 1, false);
+                board[i] = '';
+                maxEval = Math.max(maxEval, eval);
+            }
+        }
+        return maxEval;
+    } else {
+        let minEval = Infinity;
+        for (let i = 0; i < 9; i++) {
+            if (board[i] === '') {
+                board[i] = 'X';
+                let eval = minimax(board, depth + 1, true);
+                board[i] = '';
+                minEval = Math.min(minEval, eval);
+            }
+        }
+        return minEval;
     }
 }
 
@@ -180,9 +297,13 @@ pvpBtn.addEventListener('click', () => setMode('pvp'));
 aiBtn.addEventListener('click', () => setMode('ai'));
 resetBtn.addEventListener('click', resetBoard);
 newGameBtn.addEventListener('click', newGame);
+easyBtn.addEventListener('click', () => setDifficulty('easy'));
+mediumBtn.addEventListener('click', () => setDifficulty('medium'));
+hardBtn.addEventListener('click', () => setDifficulty('hard'));
 
 // Initialize
 scores = {X: 0, O: 0, tie: 0};
 mode = 'pvp';
+aiDifficulty = 'medium';
 initGame();
 updateScores();
