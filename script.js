@@ -200,19 +200,40 @@ function updateCell(idx, player) {
 }
 
 function onCellClick(e) {
+    console.log('Cell clicked:', e.target.dataset.idx);
     const idx = +e.target.dataset.idx;
-    if (!gameActive || board[idx]) return;
+    
+    console.log('Game state:', {
+        gameActive: gameActive,
+        boardCell: board[idx],
+        currentPlayer: currentPlayer
+    });
+    
+    if (!gameActive || board[idx]) {
+        console.log('Click ignored - game not active or cell occupied');
+        return;
+    }
+    
+    // Play move sound (with error handling)
+    try {
+        soundFX.playMoveSound(currentPlayer);
+    } catch (error) {
+        console.log('Sound error:', error);
+    }
+    
     board[idx] = currentPlayer;
     updateCell(idx, currentPlayer);
     const winInfo = checkWinner();
     if (winInfo) {
         winInfo.combo.forEach(i => boardEl.children[i].classList.add('winner'));
         setMessage(`Player ${currentPlayer} wins!`);
+        try { soundFX.playWinSound(); } catch (e) {}
         scores[currentPlayer]++;
         updateScores();
         gameActive = false;
     } else if (board.every(cell => cell)) {
         setMessage("It's a tie!");
+        try { soundFX.playTieSound(); } catch (e) {}
         scores.tie++;
         updateScores();
         gameActive = false;
@@ -251,6 +272,7 @@ function updateScores() {
 }
 
 function resetBoard() {
+    soundFX.playResetSound();
     board = Array(9).fill('');
     currentPlayer = 'X';
     gameActive = true;
@@ -262,12 +284,22 @@ function resetBoard() {
 }
 
 function newGame() {
+    soundFX.playResetSound();
     scores = {X: 0, O: 0, tie: 0};
     updateScores();
-    resetBoard();
+    // Reset board without calling newGame again
+    board = Array(9).fill('');
+    currentPlayer = 'X';
+    gameActive = true;
+    createBoard();
+    setMessage(`Player ${currentPlayer}'s turn`);
+    if (mode === 'ai' && currentPlayer === 'O') {
+        setTimeout(aiMove, 500);
+    }
 }
 
 function setMode(newMode) {
+    soundFX.playModeChangeSound();
     mode = newMode;
     pvpBtn.classList.toggle('active', mode === 'pvp');
     aiBtn.classList.toggle('active', mode === 'ai');
@@ -317,17 +349,22 @@ function aiMove() {
     }
     
     if (move !== null) {
+        // Play AI move sound
+        soundFX.playAIMoveSound();
+        
         board[move] = 'O';
         updateCell(move, 'O');
         const winInfo = checkWinner();
         if (winInfo) {
             winInfo.combo.forEach(i => boardEl.children[i].classList.add('winner'));
             setMessage('AI wins!');
+            soundFX.playWinSound();
             scores['O']++;
             updateScores();
             gameActive = false;
         } else if (board.every(cell => cell)) {
             setMessage("It's a tie!");
+            soundFX.playTieSound();
             scores.tie++;
             updateScores();
             gameActive = false;
