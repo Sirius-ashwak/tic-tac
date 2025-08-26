@@ -361,6 +361,19 @@ h1 {
     background: linear-gradient(135deg, #0066ff, #0044cc);
 }
 
+.sound-toggle {
+    font-size: 1.2rem !important;
+    padding: 0.7rem 1rem !important;
+    min-width: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sound-toggle:hover {
+    background: linear-gradient(135deg, #ff9500, #cc7700) !important;
+}
+
 .message {
     text-align: center;
     font-size: 1.2rem;

@@ -275,14 +275,28 @@ function setMode(newMode) {
     // Show/hide difficulty selector based on mode
     aiDifficultyEl.style.display = mode === 'ai' ? 'flex' : 'none';
     
-    newGame();
+    // Only reset game if it's already initialized
+    if (scores) {
+        newGame();
+    }
 }
 
 function setDifficulty(difficulty) {
+    soundFX.playButtonSound();
     aiDifficulty = difficulty;
     easyBtn.classList.toggle('active', difficulty === 'easy');
     mediumBtn.classList.toggle('active', difficulty === 'medium');
     hardBtn.classList.toggle('active', difficulty === 'hard');
+}
+
+function toggleSound() {
+    const isEnabled = soundFX.toggle();
+    soundBtn.textContent = isEnabled ? '🔊' : '🔇';
+    soundBtn.title = isEnabled ? 'Mute sounds' : 'Enable sounds';
+    
+    if (isEnabled) {
+        soundFX.playButtonSound();
+    }
 }
 
 function aiMove() {
@@ -440,10 +454,60 @@ newGameBtn.addEventListener('click', newGame);
 easyBtn.addEventListener('click', () => setDifficulty('easy'));
 mediumBtn.addEventListener('click', () => setDifficulty('medium'));
 hardBtn.addEventListener('click', () => setDifficulty('hard'));
+soundBtn.addEventListener('click', toggleSound);
 
-// Initialize
-scores = {X: 0, O: 0, tie: 0};
-mode = 'pvp';
-aiDifficulty = 'medium';
-initGame();
-updateScores();
+// Add hover sounds to buttons
+[pvpBtn, aiBtn, resetBtn, newGameBtn, easyBtn, mediumBtn, hardBtn, soundBtn].forEach(btn => {
+    btn.addEventListener('mouseenter', () => soundFX.playHoverSound());
+});
+
+// Initialize audio context on first user interaction
+document.addEventListener('click', () => {
+    if (soundFX.audioContext && soundFX.audioContext.state === 'suspended') {
+        soundFX.audioContext.resume();
+    }
+}, { once: true });
+
+// Initialize when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    // Initialize
+    scores = {X: 0, O: 0, tie: 0};
+    mode = 'pvp';
+    aiDifficulty = 'medium';
+
+    // Set initial UI state
+    pvpBtn.classList.add('active');
+    aiBtn.classList.remove('active');
+    aiDifficultyEl.style.display = 'none';
+    mediumBtn.classList.add('active');
+    easyBtn.classList.remove('active');
+    hardBtn.classList.remove('active');
+
+    // Initialize game
+    initGame();
+    updateScores();
+});
+
+// Fallback initialization if DOMContentLoaded already fired
+if (document.readyState === 'loading') {
+    // DOM is still loading
+} else {
+    // DOM is already loaded
+    scores = {X: 0, O: 0, tie: 0};
+    mode = 'pvp';
+    aiDifficulty = 'medium';
+
+    // Set initial UI state
+    if (pvpBtn) {
+        pvpBtn.classList.add('active');
+        aiBtn.classList.remove('active');
+        aiDifficultyEl.style.display = 'none';
+        mediumBtn.classList.add('active');
+        easyBtn.classList.remove('active');
+        hardBtn.classList.remove('active');
+    }
+
+    // Initialize game
+    initGame();
+    updateScores();
+}
