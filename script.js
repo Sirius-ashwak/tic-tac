@@ -12,26 +12,166 @@ const aiDifficultyEl = document.getElementById('ai-difficulty');
 const easyBtn = document.getElementById('easy-btn');
 const mediumBtn = document.getElementById('medium-btn');
 const hardBtn = document.getElementById('hard-btn');
+const soundBtn = document.getElementById('sound-btn');
+
+// Check if all elements are found
+console.log('DOM Elements:', {
+    boardEl: !!boardEl,
+    messageEl: !!messageEl,
+    scoreXEl: !!scoreXEl,
+    scoreOEl: !!scoreOEl,
+    scoreTieEl: !!scoreTieEl,
+    pvpBtn: !!pvpBtn,
+    aiBtn: !!aiBtn,
+    resetBtn: !!resetBtn,
+    newGameBtn: !!newGameBtn,
+    aiDifficultyEl: !!aiDifficultyEl,
+    easyBtn: !!easyBtn,
+    mediumBtn: !!mediumBtn,
+    hardBtn: !!hardBtn,
+    soundBtn: !!soundBtn
+});
 
 let board, currentPlayer, gameActive, mode, scores, aiDifficulty;
 
+// Sound Effects System
+class SoundEffects {
+    constructor() {
+        this.audioContext = null;
+        this.enabled = true;
+        this.initAudio();
+    }
+
+    initAudio() {
+        try {
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        } catch (error) {
+            console.log('Audio not supported');
+            this.enabled = false;
+        }
+    }
+
+    playTone(frequency, duration, type = 'sine', volume = 0.3) {
+        if (!this.enabled || !this.audioContext) return;
+
+        try {
+            const oscillator = this.audioContext.createOscillator();
+            const gainNode = this.audioContext.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(this.audioContext.destination);
+
+            oscillator.frequency.setValueAtTime(frequency, this.audioContext.currentTime);
+            oscillator.type = type;
+
+            gainNode.gain.setValueAtTime(0, this.audioContext.currentTime);
+            gainNode.gain.linearRampToValueAtTime(volume, this.audioContext.currentTime + 0.01);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + duration);
+
+            oscillator.start(this.audioContext.currentTime);
+            oscillator.stop(this.audioContext.currentTime + duration);
+        } catch (error) {
+            console.log('Audio error:', error);
+            this.enabled = false;
+        }
+    }
+
+    // Game-specific sound effects
+    playMoveSound(player) {
+        if (player === 'X') {
+            // Higher pitch for X
+            this.playTone(800, 0.15, 'square', 0.2);
+        } else {
+            // Lower pitch for O
+            this.playTone(400, 0.15, 'sine', 0.2);
+        }
+    }
+
+    playWinSound() {
+        // Victory fanfare
+        setTimeout(() => this.playTone(523, 0.2, 'sine', 0.3), 0);
+        setTimeout(() => this.playTone(659, 0.2, 'sine', 0.3), 100);
+        setTimeout(() => this.playTone(784, 0.2, 'sine', 0.3), 200);
+        setTimeout(() => this.playTone(1047, 0.4, 'sine', 0.3), 300);
+    }
+
+    playTieSound() {
+        // Neutral ending sound
+        this.playTone(300, 0.3, 'triangle', 0.2);
+        setTimeout(() => this.playTone(250, 0.3, 'triangle', 0.2), 150);
+    }
+
+    playButtonSound() {
+        // UI button click
+        this.playTone(600, 0.1, 'square', 0.15);
+    }
+
+    playResetSound() {
+        // Reset/New game sound
+        this.playTone(440, 0.1, 'sawtooth', 0.2);
+        setTimeout(() => this.playTone(330, 0.1, 'sawtooth', 0.2), 50);
+    }
+
+    playModeChangeSound() {
+        // Mode switch sound
+        this.playTone(880, 0.08, 'sine', 0.2);
+        setTimeout(() => this.playTone(1100, 0.08, 'sine', 0.2), 80);
+    }
+
+    playAIMoveSound() {
+        // AI move - distinctive robotic sound
+        this.playTone(350, 0.1, 'sawtooth', 0.2);
+        setTimeout(() => this.playTone(420, 0.1, 'sawtooth', 0.2), 50);
+    }
+
+    playHoverSound() {
+        // Subtle hover sound
+        this.playTone(1200, 0.05, 'sine', 0.1);
+    }
+
+    toggle() {
+        this.enabled = !this.enabled;
+        return this.enabled;
+    }
+}
+
+// Initialize sound system
+const soundFX = new SoundEffects();
+
 function initGame() {
+    console.log('Initializing game...');
     board = Array(9).fill('');
     currentPlayer = 'X';
     gameActive = true;
     createBoard();
     setMessage(`Player ${currentPlayer}'s turn`);
+    console.log('Game initialized:', { board, currentPlayer, gameActive });
 }
 
 function createBoard() {
+    if (!boardEl) {
+        console.error('Board element not found!');
+        return;
+    }
+    
     boardEl.innerHTML = '';
     for (let i = 0; i < 9; i++) {
         const cellEl = document.createElement('div');
         cellEl.className = 'cell';
         cellEl.dataset.idx = i;
         cellEl.addEventListener('click', onCellClick);
+        
+        // Add hover sound effect
+        cellEl.addEventListener('mouseenter', () => {
+            if (!board[i] && gameActive) {
+                soundFX.playHoverSound();
+            }
+        });
+        
         boardEl.appendChild(cellEl);
     }
+    
+    console.log('Board created with', boardEl.children.length, 'cells');
 }
 
 function updateCell(idx, player) {
